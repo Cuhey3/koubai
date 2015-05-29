@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<!--
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+-->
+<html lang="ja" ng-app="Koubai">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>購買証明くん</title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
+        <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.0/angular.min.js"></script>
+        <script src="http://cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/0.10.0/ui-bootstrap-tpls.min.js"></script>
+        <script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+        <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+        <style>
+            body{margin-top:70px;}
+        </style>
+        <script>
+            var re = /\d{6,}/g;
+            var barcodes = {};
+            var info = [];
+            angular.module("Koubai", ["ui.bootstrap"])
+                    .controller("MyController", ["$scope", "$modal", function ($scope, $modal) {
+                            $scope.barcodeValue = "有効なバーコードを設定してください。";
+                            $scope.textareaTooltip = "有効なバーコードを設定してください。";
+                            $scope.settingIsEnd = function () {
+                                return Object.keys(barcodes).length > 0;
+                            };
+                            $scope.changeSetting = function () {
+                                confirm("未実装");
+                            };
+                            $scope.startCheck = function () {
+                                if ($scope.settingIsEnd()) {
+                                    $scope.barcodeValue = "";
+                                    $("#barcodeinput").focus();
+                                } else {
+                                    confirm("先に有効なバーコードを設定する必要があります。");
+                                }
+                            };
+                            $scope.settingOpen = function () {
+                                var mo = $modal.open({
+                                    templateUrl: 'myModal',
+                                    controller: ModalInstanceCtrl,
+                                    windowClass: 'app-modal-window'
+                                });
+                                mo.result.then(function () {
+                                    if (Object.keys(barcodes).length > 1) {
+                                        $scope.barcodeValue = null;
+                                        $scope.textareaTooltip = "バーコードを入力します。";
+                                    }
+                                });
+                            };
+                            $scope.match = function () {
+                                $scope.invalidBarcode = "";
+                                if ($scope.barcodeValue && $scope.barcodeValue !== "有効なバーコードを設定してください。") {
+                                    var arr = $scope.barcodeValue.match(re);
+                                    var count = 0;
+                                    if (arr !== null) {
+                                        for (var i = 0; i < arr.length; i++) {
+                                            if (barcodes[arr[i]]) {
+                                                count++;
+                                            } else {
+                                                $scope.invalidBarcode += i + 1 + "件目" + arr[i] + " ";
+                                            }
+                                        }
+                                        if (count >= 2) {
+                                            $scope.resultView = "alert-success";
+                                            $scope.resultText = "○";
+                                            $scope.resultTooltip = "購買証明されました。";
+                                        } else if (arr.length >= 2 && count > 0) {
+                                            $scope.resultView = "alert-danger";
+                                            $scope.resultText = "×";
+                                            $scope.resultTooltip = "有効なバーコードが足りません。";
+                                        } else if (arr.length === count) {
+                                            $scope.resultView = "alert-default";
+                                            $scope.resultText = "？";
+                                            $scope.resultTooltip = "入力を続けてください。";
+                                        } else {
+                                            $scope.resultView = "alert-danger";
+                                            $scope.resultText = "×";
+                                            $scope.resultTooltip = "有効なバーコードが入力されていません。";
+                                        }
+                                    } else {
+                                        $scope.resultView = "alert-default";
+                                        $scope.resultText = "？";
+                                        $scope.resultTooltip = "バーコードが入力されていません。";
+                                    }
+                                } else {
+                                    $scope.resultView = "alert-default";
+                                    $scope.resultText = "？";
+                                    $scope.resultTooltip = "ここに結果が表示されます。";
+                                }
+                            };
+                            $scope.match();
+                            $scope.tryClear = function (e) {
+                                if (e.keyCode === 32 || e.keyCode === 27) {
+                                    $scope.barcodeValue = "";
+                                    $scope.match();
+                                    e.preventDefault();
+                                } else if (e.keyCode === 13 || e.keyCode === 46 || e.keyCode === 8) {
+                                    $scope.match();
+                                }
+                            };
+                            $scope.getInfo = function () {
+                                return info;
+                            };
+                            $scope.settingOpen();
+                        }]);
+            var ModalInstanceCtrl = function ($scope, $modalInstance) {
+                $scope.change = function () {
+                    var arr = this.settingTextarea.match(re);
+                    var obj = {};
+                    var mes = "";
+                    var eq = true;
+                    if (arr !== null) {
+                        if (Object.keys(barcodes).length !== arr.length) {
+                            eq = false;
+                        }
+                        for (var i = 0; i < arr.length; i++) {
+                            obj[arr[i]] = true;
+                            mes += " " + arr[i];
+                            if (!barcodes[arr[i]]) {
+                                eq = false;
+                            }
+                        }
+                        if (eq) {
+                            alert("入力されたバーコードはすでに登録済みのものと同一です。\n更新はされません。");
+                        } else {
+                            if (window.confirm(Object.keys(obj).length + "種類のバーコードを設定します。よろしいですか？")) {
+                                barcodes = obj;
+                                info.push({"time": new Date(), "message": Object.keys(obj).length + "種類のバーコードを設定しました。" + mes});
+                                $modalInstance.close();
+                            }
+                        }
+                    } else {
+                        alert("有効なバーコードがありません。");
+                    }
+                };
+                $scope.cancel = function () {
+                    $modalInstance.dismiss('cancel');
+                };
+                $scope.settingPlaceholder = "バーコードを含む文字列をここへ貼り付けてください。";
+            };</script>
+    </head>
+    <body>
+        <div class="container" ng-controller="MyController">
+            <nav class="navbar navbar-default navbar-inverse navbar-fixed-top" role="navigation">
+                <div class="container-fluid" style="margin:0 20px;">
+                    <div class="navbar-header">
+                        <span class="navbar-brand" style="color:white;font-size:x-large;font-weight:bold;">購買証明くん</span>
+                    </div>
+                    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                        <div class="btn-group nav navbar-nav navbar-right" role="group" style="margin-top:10px;">
+                            <button type="button" class="btn btn-default" data-toggle="tooltip" data-placement="bottom" title="有効なバーコードを設定します。" ng-click="settingOpen()"><span class="glyphicon glyphicon-list"></span></button>
+                            <button type="button" class="btn btn-default" data-toggle="tooltip" data-placement="bottom" title="購買証明を開始します。" ng-click="startCheck()"><span class="glyphicon glyphicon-barcode"></span></button>
+                            <button type="button" class="btn btn-default" data-toggle="tooltip" data-placement="bottom" title="設定を変更します。" ng-click="changeSetting()"><span class="glyphicon glyphicon-cog"></span></button>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+            <div class="row">
+                <div class="col-xs-6">
+                    <textarea class="form-control" style="height:300px;font-size:30px;" id="barcodeinput" ng-model="barcodeValue" ng-keydown="tryClear($event)" ng-disabled="!settingIsEnd()" data-toggle="tooltip" data-placement="bottom" ng-attr-title="{{textareaTooltip}}"></textarea>
+                </div>
+                <div class="col-xs-6 alert" style="text-align:center;height:300px;vertical-align: middle;" ng-class="resultView" data-toggle="tooltip" data-placement="bottom" ng-attr-title="{{resultTooltip}}">
+                    <span style="font-size: 200px;line-height:200px;">{{resultText}}</span><p><span ng-show="invalidBarcode">無効なバーコード:{{invalidBarcode}}</span></p><p style="font-size:large;">{{resultTooltip}}</p>
+                </div>
+            </div>
+
+            <hr>
+            <h3>インフォメーション</h3>
+            <table class="table">
+                <tr ng-repeat="info in getInfo()| orderBy:'-time'">
+                    <td style="min-width:120px;">{{info.time|date:'MM/dd HH:mm:ss'}}</td><td>{{info.message}}</td>
+                </tr>
+            </table>
+            <hr>
+            <footer>
+                <p>&copy; 2015 doi shuhei</p>
+            </footer>
+        </div>
+        <script  type="text/ng-template" id="myModal">
+            <div class="modal-header">
+            <h3 class="modal-title">有効なバーコードを設定します。</h3>
+            </div>
+            <div class="modal-body">
+            <textarea class="form-control" id="setting_textarea" rows="20" ng-attr-placeholder="{{settingPlaceholder}}" ng-model="settingTextarea"></textarea>
+            <small>※6桁以上の連続する数字を読み取り、有効なバーコードとして設定します。<br />
+            ※事前に不要な文字を削除する必要はありません。</small><div class="modal-footer">
+
+            <button class="btn btn-primary" ng-click="change()">設定を保存</button>
+            <button class="btn btn-default" ng-click="cancel()">キャンセル</button>
+            </div>  
+            </div>
+            </body>
+        </script>
+    </body>
+</html>
