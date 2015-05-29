@@ -22,9 +22,11 @@ and open the template in the editor.
         <script>
             var re = /\d{6,}/g;
             var barcodes = {};
+            var barcodesArray = [];
             var info = [];
             angular.module("Koubai", ["ui.bootstrap"])
                     .controller("MyController", ["$scope", "$modal", function ($scope, $modal) {
+                            $scope.okCount = 0;
                             $scope.barcodeValue = "有効なバーコードを設定してください。";
                             $scope.textareaTooltip = "有効なバーコードを設定してください。";
                             $scope.settingIsEnd = function () {
@@ -98,6 +100,9 @@ and open the template in the editor.
                             $scope.match();
                             $scope.tryClear = function (e) {
                                 if (e.keyCode === 32 || e.keyCode === 27) {
+                                    if ($scope.resultText === "○") {
+                                        $scope.okCount++;
+                                    }
                                     $scope.barcodeValue = "";
                                     $scope.match();
                                     e.preventDefault();
@@ -111,6 +116,10 @@ and open the template in the editor.
                             $scope.settingOpen();
                         }]);
             var ModalInstanceCtrl = function ($scope, $modalInstance) {
+                $scope.settingTextarea = "";
+                for (var i = 0; i < barcodesArray.length; i++) {
+                    $scope.settingTextarea += barcodesArray[i] + "\n";
+                }
                 $scope.change = function () {
                     var arr = this.settingTextarea.match(re);
                     var obj = {};
@@ -122,7 +131,6 @@ and open the template in the editor.
                         }
                         for (var i = 0; i < arr.length; i++) {
                             obj[arr[i]] = true;
-                            mes += " " + arr[i];
                             if (!barcodes[arr[i]]) {
                                 eq = false;
                             }
@@ -132,7 +140,8 @@ and open the template in the editor.
                         } else {
                             if (window.confirm(Object.keys(obj).length + "種類のバーコードを設定します。よろしいですか？")) {
                                 barcodes = obj;
-                                info.push({"time": new Date(), "message": Object.keys(obj).length + "種類のバーコードを設定しました。" + mes});
+                                barcodesArray = arr;
+                                info.push({"time": new Date(), "message": Object.keys(obj).length + "種類のバーコードを設定しました。"});
                                 $modalInstance.close();
                             }
                         }
@@ -170,12 +179,12 @@ and open the template in the editor.
                     <span style="font-size: 200px;line-height:200px;">{{resultText}}</span><p><span ng-show="invalidBarcode">無効なバーコード:{{invalidBarcode}}</span></p><p style="font-size:large;">{{resultTooltip}}</p>
                 </div>
             </div>
-
+            <p style="vertical-align: middle;"><span style="font-size:large;">購買が証明された件数: {{okCount}}</span>　 　<input type="button" class="btn btn-default" ng-click="okCount = 0" value="リセット" data-toggle="tooltip" data-placement="right" title="カウントを0に戻します。" /></p>
             <hr>
             <h3>インフォメーション</h3>
             <table class="table">
                 <tr ng-repeat="info in getInfo()| orderBy:'-time'">
-                    <td style="min-width:120px;">{{info.time|date:'MM/dd HH:mm:ss'}}</td><td>{{info.message}}</td>
+                    <td style="width:120px;">{{info.time|date:'MM/dd HH:mm:ss'}}</td><td>{{info.message}}</td>
                 </tr>
             </table>
             <hr>
