@@ -21,14 +21,13 @@ and open the template in the editor.
         </style>
         <script>
             var re = /\d{6,}/g;
-            var barcodes = {};
-            var barcodesArray = [];
+
+            var barcodes = {}; // 起動時に毎回有効なバーコードを設定するのが嫌な時は、{"バーコード1":true,"バーコード2":true}のようにハードコーディングしてください。
+            var barcodesArray = Object.keys(barcodes);
             var info = [];
             angular.module("Koubai", ["ui.bootstrap"])
                     .controller("MyController", ["$scope", "$modal", function ($scope, $modal) {
                             $scope.okCount = 0;
-                            $scope.barcodeValue = "有効なバーコードを設定してください。";
-                            $scope.textareaTooltip = "有効なバーコードを設定してください。";
                             $scope.settingIsEnd = function () {
                                 return Object.keys(barcodes).length > 0;
                             };
@@ -113,7 +112,13 @@ and open the template in the editor.
                             $scope.getInfo = function () {
                                 return info;
                             };
-                            $scope.settingOpen();
+                            if ($scope.settingIsEnd()) {
+                                info.push({"time":new Date(),"message":"有効なバーコードがすでに" + barcodesArray.length + "件登録されています。"});
+                            }else{
+                                $scope.barcodeValue = "有効なバーコードを設定してください。";
+                                $scope.textareaTooltip = "有効なバーコードを設定してください。";
+                                $scope.settingOpen();
+                            }
                             $scope.countReset = function () {
                                 if ($scope.okCount !== 0) {
                                     info.push({"time": new Date(), "message": $scope.okCount + "件のカウントをリセットしました。"})
