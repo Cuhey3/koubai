@@ -114,6 +114,12 @@ and open the template in the editor.
                                 return info;
                             };
                             $scope.settingOpen();
+                            $scope.countReset = function () {
+                                if ($scope.okCount !== 0) {
+                                    info.push({"time": new Date(), "message": $scope.okCount + "件のカウントをリセットしました。"})
+                                    $scope.okCount = 0;
+                                }
+                            };
                         }]);
             var ModalInstanceCtrl = function ($scope, $modalInstance) {
                 $scope.settingTextarea = "";
@@ -179,7 +185,7 @@ and open the template in the editor.
                     <span style="font-size: 200px;line-height:200px;">{{resultText}}</span><p><span ng-show="invalidBarcode">無効なバーコード:{{invalidBarcode}}</span></p><p style="font-size:large;">{{resultTooltip}}</p>
                 </div>
             </div>
-            <p style="vertical-align: middle;"><span style="font-size:large;">購買が証明された件数: {{okCount}}</span>　 　<input type="button" class="btn btn-default" ng-click="okCount = 0" value="リセット" data-toggle="tooltip" data-placement="right" title="カウントを0に戻します。" /></p>
+            <p style="vertical-align: middle;"><span style="font-size:large;">購買が証明された件数: {{okCount}}</span>　 　<input type="button" class="btn btn-default" ng-click="countReset();" value="リセット" data-toggle="tooltip" data-placement="right" title="カウントを0に戻します。" ng-disabled="!okCount"/></p>
             <hr>
             <h3>インフォメーション</h3>
             <table class="table">
