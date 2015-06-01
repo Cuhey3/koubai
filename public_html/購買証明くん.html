@@ -14,154 +14,277 @@
             body{margin-top:70px;}
         </style>
         <script>
-            var re = /\d{6,}/g;
-            var validBarcodeObject = {}; // 起動時にあらかじめ有効なバーコードを読み込んでおきたい時は、var validBarcodeObject = {"バーコード1":true,"バーコード2":true}のようにハードコーディングしてください。
-            var validBarcodeArray = Object.keys(validBarcodeObject);
-            var systemInfomationArray = [];
+            /*
+             起動するたびにバーコードを設定したくない時は、var barcodes = "123456,345678";のようにカンマ区切りで書き込んでください。
+             */
+            //var barcodes = "123456,345678";
+            var barcodes = "";
+            var PURCHASING_HAS_BEEN_PROVEN = "購買証明されました。";
+            var SET_VALID_BARCODE = "有効なバーコードを設定してください。";
+            var CONTINUE_TO_INPUT = "入力を続けてください。";
+            var HERE_RESULT_ARE_DISPLAYED = "ここに結果が表示されます。";
+            var VALID_BARCODE_IS_NOT_ENOUGH = "有効なバーコードが足りません。";
+            var NOT_VALID_BARCODE_IS_INPUT = "有効なバーコードが入力されていません。";
+            var BARCODE_IS_NOT_ENTERED = "バーコードが入力されていません。";
+            var YOU_NEED_TO_SET_VALID_BARCODES_FIRST = "先に有効なバーコードを設定する必要があります。";
+            var ENTER_BARCODE = "バーコードを入力します。";
+            var DOES_NOT_HAVE_VALID_BARCODES = "有効なバーコードがありません。";
+            var UNIMPLEMENTED = "未実装";
+            var OK_SIGN = "○";
+            var NG_SIGN = "×";
+            var CONTINUE_SIGN = "？";
+            var ESC_KEYCODE = 27;
+            var ENTER_KEYCODE = 13;
+            var DEL_KEYCODE = 46;
+            var BACKSPACE_KEYCODE = 8;
+            var SPACE_KEYCODE = 32;
+            var angular;
             angular.module("Koubai", ["ui.bootstrap"])
-                    .factory("barcodeValidator", function() {
-                        var obj = {};
-                        return obj;
+                    .factory("validBarcodes", function () {
+                        var validBarcodes = {};
+                        var validBarcodeObject = {};
+                        var validBarcodeArray = {};
+                        var newObject = {};
+                        var newArray = [];
+                        var needCount = 2;
+                        validBarcodes.init = function (input) {
+                            validBarcodes.saveByArray(input.split(","));
+                        };
+                        validBarcodes.settingIsDone = function () {
+                            return validBarcodeArray.length > 0;
+                        };
+                        validBarcodes.array = function () {
+                            return validBarcodeArray;
+                        };
+                        validBarcodes.object = function () {
+                            return validBarcodeObject;
+                        };
+                        validBarcodes.saveByArray = function (arr) {
+                            validBarcodeArray = arr;
+                            validBarcodeObject = {};
+                            for (var i = 0; i < arr.length; i++) {
+                                validBarcodeObject[arr[i]] = true;
+                            }
+                        };
+                        validBarcodes.exist = function (input) {
+                            return validBarcodeObject[input] === true;
+                        };
+                        validBarcodes.size = function () {
+                            return validBarcodeArray.length;
+                        };
+                        validBarcodes.checkNewArray = function (arr) {
+                            newObject = {};
+                            for (var i = 0; i < arr.length; i++) {
+                                newObject[arr[i]] = true;
+                            }
+                            newArray = Object.keys(newObject);
+                            if (Object.keys(newObject).length !== Object.keys(validBarcodeObject).length) {
+                                return true;
+                            } else {
+                                var oldArray = Object.keys(validBarcodeObject);
+                                for (var i = 0; i < newArray.length; i++) {
+                                    if (newArray[i] !== oldArray[i]) {
+                                        return true;
+                                    }
+                                }
+                                return false;
+                            }
+                        };
+                        validBarcodes.newArray = function () {
+                            return newArray;
+                        };
+                        if (barcodes) {
+                            validBarcodes.init(barcodes);
+                        }
+                        validBarcodes.needCount = function () {
+                            return needCount;
+                        };
+                        validBarcodes.setNeedCount = function (input) {
+                            needCount = new Number(input);
+                        };
+                        return validBarcodes;
                     })
-                    .controller("MyController", ["$scope", "$modal", function($scope, $modal) {
+                    .factory("information", function () {
+                        var information = {};
+                        var array = [];
+                        information.add = function (message) {
+                            array.push({"time": new Date(), "message": message});
+                        };
+                        information.all = function () {
+                            return array;
+                        };
+                        return information;
+                    })
+                    .factory("counter", ["information", function (information) {
+                            var counter = {};
+                            var validatedCount = 0;
+                            counter.countUp = function () {
+                                validatedCount++;
+                            };
+                            counter.validatedCount = function () {
+                                return validatedCount;
+                            };
+                            counter.reset = function () {
+                                if (validatedCount !== 0) {
+                                    information.add(validatedCount + "件のカウントをリセットしました。");
+                                    validatedCount = 0;
+                                }
+                            };
+                            return counter;
+                        }])
+                    .factory("barcodeValidator", ["validBarcodes", function (validBarcodes) {
+                            var re = /\d{6,}/g;
+                            var validator = {};
+                            var result, resultMessage, invalidBarcodeMessage;
+                            validator.validate = function (input) {
+                                invalidBarcodeMessage = "";
+                                result = CONTINUE_SIGN;
+                                if (input && input !== SET_VALID_BARCODE) {
+                                    var arr = input.match(re);
+                                    var validBarcodeCount = 0;
+                                    if (arr !== null) {
+                                        for (var i = 0; i < arr.length; i++) {
+                                            if (validBarcodes.exist([arr[i]])) {
+                                                validBarcodeCount++;
+                                            } else {
+                                                invalidBarcodeMessage += i + 1 + "件目" + arr[i] + " ";
+                                            }
+                                        }
+                                        if (validBarcodeCount >= validBarcodes.needCount()) {
+                                            result = OK_SIGN;
+                                            resultMessage = PURCHASING_HAS_BEEN_PROVEN;
+                                        } else if (arr.length === validBarcodeCount) {
+                                            resultMessage = CONTINUE_TO_INPUT;
+                                        } else {
+                                            result = NG_SIGN;
+                                            if (arr.length >= validBarcodes.needCount() && validBarcodeCount > 0) {
+                                                resultMessage = VALID_BARCODE_IS_NOT_ENOUGH;
+                                            } else {
+                                                resultMessage = NOT_VALID_BARCODE_IS_INPUT;
+                                            }
+                                        }
+                                    } else {
+                                        resultMessage = BARCODE_IS_NOT_ENTERED;
+                                    }
+                                } else {
+                                    resultMessage = HERE_RESULT_ARE_DISPLAYED;
+                                }
+                            };
+                            validator.invalidBarcodeMessage = function () {
+                                return invalidBarcodeMessage;
+                            };
+                            validator.resultSign = function () {
+                                return result;
+                            };
+                            validator.resultMessage = function () {
+                                return resultMessage;
+                            };
+                            validator.resultClass = function () {
+                                switch (result) {
+                                    case OK_SIGN:
+                                        return "alert-success";
+                                    case NG_SIGN:
+                                        return "alert-danger";
+                                    default:
+                                        return "alert-default";
+                                }
+                            };
+                            validator.validate(null);
+                            return validator;
+                        }])
+                    .factory("keydownDriver", ["barcodeValidator", "counter", function (validator, counter) {
+                            var driver = {};
+                            driver.onKeydown = function (e, input) {
+                                switch (e.keyCode) {
+                                    case SPACE_KEYCODE:
+                                    case ESC_KEYCODE:
+                                        if (validator.resultSign() === OK_SIGN) {
+                                            counter.countUp();
+                                        }
+                                        validator.validate(null);
+                                        e.preventDefault();
+                                        return true;
+                                    case ENTER_KEYCODE:
+                                    case DEL_KEYCODE:
+                                    case BACKSPACE_KEYCODE:
+                                        validator.validate(input);
+                                        return false;
+                                }
+                            };
+                            return driver;
+                        }])
+                    .controller("MyController", ["$scope", "$modal", "barcodeValidator", "keydownDriver", "counter", "information", "validBarcodes", function ($scope, $modal, validator, keydownDriver, counter, information, validBarcodes) {
+                            $scope.validator = validator;
+                            $scope.counter = counter;
+                            $scope.information = information;
                             $scope.validatedCount = 0;
-                            $scope.settingIsDone = function() {
-                                return validBarcodeArray.length > 0;
+                            $scope.validBarcodes = validBarcodes;
+                            $scope.changeSetting = function () {
+                                confirm(UNIMPLEMENTED);
                             };
-                            $scope.changeSetting = function() {
-                                confirm("未実装");
-                            };
-                            $scope.startValidation = function() {
-                                if ($scope.settingIsDone()) {
+                            $scope.startValidation = function () {
+                                if (validBarcodes.settingIsDone()) {
                                     $scope.validatingBarcodeTextarea = null;
                                     $("#barcodeinput").focus();
                                 } else {
-                                    confirm("先に有効なバーコードを設定する必要があります。");
+                                    confirm(YOU_NEED_TO_SET_VALID_BARCODES_FIRST);
                                 }
                             };
-                            $scope.openValidBarcodeSetting = function() {
+                            $scope.openValidBarcodeSetting = function () {
                                 var mdl = $modal.open({
-                                    templateUrl: 'myModal',
-                                    controller: ModalInstanceCtrl,
+                                    templateUrl: 'SettingBarcodeModal',
+                                    controller: "SettingBarcodeModalController",
                                     windowClass: 'app-modal-window'
                                 });
-                                mdl.result.then(function() {
-                                    if (validBarcodeArray.length > 0) {
+                                mdl.result.then(function () {
+                                    if (validBarcodes.settingIsDone()) {
                                         $scope.validatingBarcodeTextarea = null;
-                                        $scope.validatingBarcodeTextareaTooltip = "バーコードを入力します。";
+                                        $scope.validatingBarcodeTextareaTooltip = ENTER_BARCODE;
                                     }
                                 });
                             };
-                            $scope.match = function() {
-                                $scope.invalidBarcode = "";
-                                if ($scope.validatingBarcodeTextarea && $scope.validatingBarcodeTextarea !== "有効なバーコードを設定してください。") {
-                                    var arr = $scope.validatingBarcodeTextarea.match(re);
-                                    var count = 0;
-                                    if (arr !== null) {
-                                        for (var i = 0; i < arr.length; i++) {
-                                            if (validBarcodeObject[arr[i]]) {
-                                                count++;
-                                            } else {
-                                                $scope.invalidBarcode += i + 1 + "件目" + arr[i] + " ";
-                                            }
-                                        }
-                                        if (count >= 2) {
-                                            $scope.resultView = "alert-success";
-                                            $scope.resultText = "○";
-                                            $scope.resultTooltip = "購買証明されました。";
-                                        } else if (arr.length >= 2 && count > 0) {
-                                            $scope.resultView = "alert-danger";
-                                            $scope.resultText = "×";
-                                            $scope.resultTooltip = "有効なバーコードが足りません。";
-                                        } else if (arr.length === count) {
-                                            $scope.resultView = "alert-default";
-                                            $scope.resultText = "？";
-                                            $scope.resultTooltip = "入力を続けてください。";
-                                        } else {
-                                            $scope.resultView = "alert-danger";
-                                            $scope.resultText = "×";
-                                            $scope.resultTooltip = "有効なバーコードが入力されていません。";
-                                        }
-                                    } else {
-                                        $scope.resultView = "alert-default";
-                                        $scope.resultText = "？";
-                                        $scope.resultTooltip = "バーコードが入力されていません。";
-                                    }
-                                } else {
-                                    $scope.resultView = "alert-default";
-                                    $scope.resultText = "？";
-                                    $scope.resultTooltip = "ここに結果が表示されます。";
+                            $scope.keydown = function (e) {
+                                if (keydownDriver.onKeydown(e, $scope.validatingBarcodeTextarea)) {
+                                    $scope.validatingBarcodeTextarea = null;
                                 }
                             };
-                            $scope.match();
-                            $scope.tryClear = function(e) {
-                                if (e.keyCode === 32 || e.keyCode === 27) {
-                                    if ($scope.resultText === "○") {
-                                        $scope.validatedCount++;
-                                    }
-                                    $scope.validatingBarcodeTextarea = "";
-                                    $scope.match();
-                                    e.preventDefault();
-                                } else if (e.keyCode === 13 || e.keyCode === 46 || e.keyCode === 8) {
-                                    $scope.match();
-                                }
-                            };
-                            $scope.getInfo = function() {
-                                return systemInfomationArray;
-                            };
-                            if ($scope.settingIsDone()) {
-                                systemInfomationArray.push({"time": new Date(), "message": "有効なバーコードがすでに" + validBarcodeArray.length + "件登録されています。"});
+                            if (validBarcodes.settingIsDone()) {
+                                information.add("有効なバーコードがすでに" + validBarcodes.size() + "件登録されています。");
                             } else {
-                                $scope.validatingBarcodeTextarea = "有効なバーコードを設定してください。";
-                                $scope.validatingBarcodeTextareaTooltip = "有効なバーコードを設定してください。";
+                                $scope.validatingBarcodeTextarea = SET_VALID_BARCODE;
+                                $scope.validatingBarcodeTextareaTooltip = SET_VALID_BARCODE;
                                 $scope.openValidBarcodeSetting();
                             }
-                            $scope.countReset = function() {
-                                if ($scope.validatedCount !== 0) {
-                                    systemInfomationArray.push({"time": new Date(), "message": $scope.validatedCount + "件のカウントをリセットしました。"});
-                                    $scope.validatedCount = 0;
+                        }])
+                    .controller("SettingBarcodeModalController", ["$scope", "$modalInstance", "information", "validBarcodes", function ($scope, $modalInstance, information, validBarcodes) {
+                            var re = /\d{6,}/g;
+                            $scope.settingTextarea = "";
+                            $scope.needCount = validBarcodes.needCount();
+                            for (var i = 0; i < validBarcodes.size(); i++) {
+                                $scope.settingTextarea += validBarcodes.array()[i] + "\n";
+                            }
+                            $scope.change = function () {
+                                var arr = this.settingTextarea.match(re);
+                                if (arr !== null) {
+                                    if (validBarcodes.checkNewArray(arr)) {
+                                        if (window.confirm(validBarcodes.newArray().length + "種類のバーコードを設定します。よろしいですか？")) {
+                                            validBarcodes.saveByArray(arr);
+                                            information.add(validBarcodes.newArray().length + "種類のバーコードを設定しました。");
+                                            $modalInstance.close();
+                                        }
+                                    } else {
+                                        alert("入力されたバーコードはすでに登録済みのものと同一です。\n更新はされません。");
+                                    }
+                                } else {
+                                    alert(DOES_NOT_HAVE_VALID_BARCODES);
                                 }
                             };
+                            $scope.cancel = function () {
+                                $modalInstance.dismiss('cancel');
+                            };
+                            $scope.settingPlaceholder = "バーコードを含む文字列をここへ貼り付けてください。";
                         }]);
-                    
-            var ModalInstanceCtrl = function($scope, $modalInstance) {
-                $scope.settingTextarea = "";
-                for (var i = 0; i < validBarcodeArray.length; i++) {
-                    $scope.settingTextarea += validBarcodeArray[i] + "\n";
-                }
-                $scope.change = function() {
-                    var arr = this.settingTextarea.match(re);
-                    var obj = {};
-                    var eq = true;
-                    if (arr !== null) {
-                        if (Object.keys(validBarcodeObject).length !== arr.length) {
-                            eq = false;
-                        }
-                        for (var i = 0; i < arr.length; i++) {
-                            obj[arr[i]] = true;
-                            if (!validBarcodeObject[arr[i]]) {
-                                eq = false;
-                            }
-                        }
-                        if (eq) {
-                            alert("入力されたバーコードはすでに登録済みのものと同一です。\n更新はされません。");
-                        } else {
-                            if (window.confirm(Object.keys(obj).length + "種類のバーコードを設定します。よろしいですか？")) {
-                                validBarcodeObject = obj;
-                                validBarcodeArray = arr;
-                                systemInfomationArray.push({"time": new Date(), "message": Object.keys(obj).length + "種類のバーコードを設定しました。"});
-                                $modalInstance.close();
-                            }
-                        }
-                    } else {
-                        alert("有効なバーコードがありません。");
-                    }
-                };
-                $scope.cancel = function() {
-                    $modalInstance.dismiss('cancel');
-                };
-                $scope.settingPlaceholder = "バーコードを含む文字列をここへ貼り付けてください。";
-            };</script>
+        </script>
     </head>
     <body>
         <div class="container" ng-controller="MyController">
@@ -181,17 +304,17 @@
             </nav>
             <div class="row">
                 <div class="col-xs-6">
-                    <textarea class="form-control" style="height:300px;font-size:30px;" id="barcodeinput" ng-model="validatingBarcodeTextarea" ng-keydown="tryClear($event)" ng-disabled="!settingIsDone()" data-toggle="tooltip" data-placement="bottom" ng-attr-title="{{validatingBarcodeTextareaTooltip}}"></textarea>
+                    <textarea class="form-control" style="height:300px;font-size:30px;" id="barcodeinput" ng-model="validatingBarcodeTextarea" ng-keydown="keydown($event)" ng-disabled="!validBarcodes.settingIsDone()" data-toggle="tooltip" data-placement="bottom" ng-attr-title="{{validatingBarcodeTextareaTooltip}}"></textarea>
                 </div>
-                <div class="col-xs-6 alert" style="text-align:center;height:300px;vertical-align: middle;" ng-class="resultView" data-toggle="tooltip" data-placement="bottom" ng-attr-title="{{resultTooltip}}">
-                    <span style="font-size: 200px;line-height:200px;">{{resultText}}</span><p><span ng-show="invalidBarcode">無効なバーコード:{{invalidBarcode}}</span></p><p style="font-size:large;">{{resultTooltip}}</p>
+                <div class="col-xs-6 alert" style="text-align:center;height:300px;vertical-align: middle;" ng-class="validator.resultClass()" data-toggle="tooltip" data-placement="bottom" ng-attr-title="{{validator.resultMessage()}}">
+                    <span style="font-size: 200px;line-height:200px;">{{validator.resultSign()}}</span><p><span ng-show="validator.invalidBarcodeMessage()">無効なバーコード:{{validator.invalidBarcodeMessage()}}</span></p><p style="font-size:large;">{{validator.resultMessage()}}</p>
                 </div>
             </div>
-            <p style="vertical-align: middle;"><span style="font-size:large;">購買が証明された件数: {{validatedCount}}</span>　 　<input type="button" class="btn btn-default" ng-click="countReset();" value="リセット" data-toggle="tooltip" data-placement="right" title="カウントを0に戻します。" ng-disabled="!validatedCount"/></p>
+            <p style="vertical-align: middle;"><span style="font-size:large;">購買が証明された件数: {{counter.validatedCount()}}</span>　 　<input type="button" class="btn btn-default" ng-click="counter.reset();" value="リセット" data-toggle="tooltip" data-placement="right" title="カウントを0に戻します。" ng-disabled="!counter.validatedCount()"/></p>
             <hr>
             <h3>インフォメーション</h3>
             <table class="table">
-                <tr ng-repeat="info in getInfo()| orderBy:'-time'">
+                <tr ng-repeat="info in information.all() | orderBy:'-time'">
                     <td style="width:120px;">{{info.time|date:'MM/dd HH:mm:ss'}}</td><td>{{info.message}}</td>
                 </tr>
             </table>
@@ -200,14 +323,17 @@
                 <p>&copy; 2015 doi shuhei</p>
             </footer>
         </div>
-        <script  type="text/ng-template" id="myModal">
+        <script  type="text/ng-template" id="SettingBarcodeModal">
             <div class="modal-header">
             <h3 class="modal-title">有効なバーコードを設定します。</h3>
             </div>
             <div class="modal-body">
+            バーコード設定：
             <textarea class="form-control" id="setting_textarea" rows="20" ng-attr-placeholder="{{settingPlaceholder}}" ng-model="settingTextarea"></textarea>
             <small>※6桁以上の連続する数字を読み取り、有効なバーコードとして設定します。<br />
             ※事前に不要な文字を削除する必要はありません。</small><div class="modal-footer">
+            <div class="form-inline" style="text-align:left;"><div class="form-group">必要なバーコードの枚数： <input type="text" ng-model="needCount" class="form-control" size ="3"></div></div>
+            <hr />
             <button class="btn btn-primary" ng-click="change()">設定を保存</button>
             <button class="btn btn-default" ng-click="cancel()">キャンセル</button>
             </div>  
