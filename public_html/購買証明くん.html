@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <title>購買証明くんだよ</title>
+        <title>購買証明くん</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
         <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.0/angular.min.js"></script>
@@ -15,7 +15,7 @@
         </style>
         <script>
             /*
-             起動するたびにバーコードを設定したくない時は、var barcodes = "123456,345678";のようにカンマ区切りで書き込んでください。
+             起動するたびにバーコードを設定したくない時は、バーコードを var barcodes = "123456,345678";のようにカンマ区切りで書き込んでください。
              */
             //var barcodes = "123456,345678";
             var barcodes = "";
@@ -265,18 +265,34 @@
                             }
                             $scope.change = function () {
                                 var arr = this.settingTextarea.match(re);
+                                var closeFlag = false;
+                                console.log(this.needCount + " " + validBarcodes.needCount());
                                 if (arr !== null) {
                                     if (validBarcodes.checkNewArray(arr)) {
                                         if (window.confirm(validBarcodes.newArray().length + "種類のバーコードを設定します。よろしいですか？")) {
                                             validBarcodes.saveByArray(arr);
                                             information.add(validBarcodes.newArray().length + "種類のバーコードを設定しました。");
-                                            $modalInstance.close();
+                                            closeFlag = true;
+                                        } else {
+
                                         }
-                                    } else {
+                                    } else if (this.needCount === validBarcodes.needCount()) {
                                         alert("入力されたバーコードはすでに登録済みのものと同一です。\n更新はされません。");
                                     }
                                 } else {
                                     alert(DOES_NOT_HAVE_VALID_BARCODES);
+                                }
+                                if (this.needCount && this.needCount !== validBarcodes.needCount()) {
+                                    if (window.confirm("必要なバーコードの数を " + this.needCount + " に変更しますか？")) {
+                                        closeFlag = true;
+                                        validBarcodes.setNeedCount(this.needCount);
+                                        information.add("必要なバーコードの数を" + this.needCount + " に変更しました。");
+                                    } else {
+                                        closeFlag = false;
+                                    }
+                                }
+                                if (closeFlag) {
+                                    $modalInstance.close();
                                 }
                             };
                             $scope.cancel = function () {
@@ -314,7 +330,7 @@
             <hr>
             <h3>インフォメーション</h3>
             <table class="table">
-                <tr ng-repeat="info in information.all() | orderBy:'-time'">
+                <tr ng-repeat="info in information.all()| orderBy:'-time'">
                     <td style="width:120px;">{{info.time|date:'MM/dd HH:mm:ss'}}</td><td>{{info.message}}</td>
                 </tr>
             </table>
